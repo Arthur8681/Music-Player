@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Advanced Music Player</title>
+    <style>
+        body {
+            max-width: 900px;
+            margin: 40px auto 160px auto;
+            padding: 20px;
+            background: #151515;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        h1 { color: #4ff165; margin: 0; }
+        
+        /* Header & Navigation Bar */
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            background: #202020;
+            padding: 15px 20px;
+            border-radius: 12px;
+        }
+        .header-links a {
+            margin-left: 15px;
+            color: #4ff165;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .header-links a:hover { text-decoration: underline; }
+
+        /* Search and Filter Form */
+        form.filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        input, select, button {
+            padding: 10px;
+            border-radius: 6px;
+            border: none;
+        }
+        input { flex: 1; background: #252525; color: white; }
+        button, select { background: #252525; color: white; cursor: pointer; }
+        button.primary { background: #4ff165; color: black; font-weight: bold; }
+
+        /* Section Header */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        /* Song Grid Layout */
+        .song-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 20px;
+        }
+        .song-card {
+            background: #252525;
+            padding: 15px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        .song-card:hover {
+            transform: translateY(-3px);
+        }
+        .song-card img, .song-card .placeholder {
+            width: 100%;
+            height: 150px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+        .placeholder {
+            background: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+        }
+        .song-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .song-meta strong {
+            font-size: 1.05em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .song-meta p {
+            margin: 0;
+            color: #aaa;
+            font-size: 0.9em;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .card-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px solid #333;
+        }
+
+        /* Sticky Global Bottom Player */
+        #sticky-player {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 15px 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            box-shadow: 0 -4px 15px rgba(0,0,0,0.6);
+            z-index: 1000;
+        }
+        .player-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            width: 100%;
+            max-width: 650px;
+        }
+        .player-controls button {
+            background: #333;
+            color: white;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .player-controls button:hover { background: #444; }
+        audio { width: 100%; }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation Bar -->
+    <div class="header-bar">
+        <div>
+            <h1>My Music Player</h1>
+        </div>
+        <div class="header-links">
+            {% if request.user.is_authenticated %}
+                <span>Welcome, <strong>{{ request.user.username }}</strong>!</span>
+                <a href="{% url 'index' %}?filter=favorites">Favorites</a>
+                <a href="{% url 'playlist_list' %}">Playlists</a>
+                <form action="{% url 'logout' %}" method="post" style="margin: 0 0 0 15px; display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" style="background: #333; color: white; padding: 6px 12px; font-size: 0.9em;">Log Out</button>
+                </form>
+            {% else %}
+                <a href="{% url 'login' %}">Log In</a>
+                <a href="{% url 'register' %}" class="primary" style="padding: 8px 12px; border-radius: 6px; color: white; display: inline-block;">Register</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Search & Filters Form -->
+    <form method="get" class="filters">
+        <input name="q" value="{{ query }}" placeholder="Search songs or artists...">
+        <select name="genre" onchange="this.form.submit()">
+            <option value="">All Genres</option>
+            {% for g in genres %}
+                <option value="{{ g.id }}" {% if selected_genre == g.id|stringformat:"s" %}selected{% endif %}>{{ g.name }}</option>
+            {% endfor %}
+        </select>
+        {% if filter_type %}
+            <input type="hidden" name="filter" value="{{ filter_type }}">
+        {% endif %}
+        <button type="submit" class="primary">Filter</button>
+    </form>
+
+    <!-- Section Header -->
+    <div class="section-header">
+        <h2>Music Library {% if filter_type == 'favorites' %}(Favorites){% endif %}</h2>
+        {% if songs %}
+            <button class="primary" onclick="playAllQueue()">▶ Play All (Queue)</button>
+        {% endif %}
+    </div>
+
+    <!-- Song Grid Container -->
+    <div class="song-grid">
+        {% for song in songs %}
+            <div class="song-card song-item" data-url="{{ song.audio_file.url }}" data-title="{{ song.title|escapejs }} - {{ song.artist|escapejs }}">
+                {% if song.cover %}
+                    <img src="{{ song.cover.url }}" alt="Cover">
+                {% else %}
+                    <div class="placeholder">🎵</div>
+                {% endif %}
+                
+                <div class="song-meta">
+                    <strong>{{ song.title }}</strong>
+                    <p>{{ song.artist }}</p>
+                </div>
+                
+                <div class="card-actions">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        {% if request.user.is_authenticated %}
+                            <a href="{% url 'toggle_favorite' song.id %}" style="text-decoration:none; font-size: 1.2em;" title="Favorite">
+                                {% if request.user in song.favorited_by.all %}❤️{% else %}🤍{% endif %}
+                            </a>
+                            <select onchange="if(this.value){ window.location.href=this.value; }" style="background: #333; font-size: 0.75em; padding: 4px; max-width: 100px;">
+                                <option value="">Add to...</option>
+                                {% for pl in user_playlists %}
+                                    <option value="{% url 'add_to_playlist' pl.id song.id %}">{{ pl.name }}</option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
+                    </div>
+                    <button class="primary" style="padding: 6px 12px; font-size: 0.85em;" onclick="playSingleSong(this)">▶ Play</button>
+                </div>
+            </div>
+        {% empty %}
+            <p style="grid-column: 1 / -1; color: #888;">No songs found matching your criteria.</p>
+        {% endfor %}
+    </div>
+
+    <!-- Sticky Global Bottom Audio Player -->
+    <div id="sticky-player">
+        <div id="now-playing" style="font-size: 0.9em; color: #4ff165;">Select a song or click "Play All" to start</div>
+        <div class="player-controls">
+            <button onclick="prevTrack()">⏮ Prev</button>
+            <audio id="audio-element" controls></audio>
+            <button onclick="nextTrack()">Next ⏭</button>
+        </div>
+    </div>
+
+    <!-- JavaScript Queue Controller -->
+    <script>
+        let queue = [];
+        let currentIndex = 0;
+        const audio = document.getElementById('audio-element');
+
+        function buildQueue() {
+            queue = [];
+            document.querySelectorAll('.song-item').forEach(item => {
+                queue.push({
+                    url: item.dataset.url,
+                    title: item.dataset.title
+                });
+            });
+        }
+
+        function playAllQueue() {
+            buildQueue();
+            if (queue.length > 0) {
+                currentIndex = 0;
+                loadAndPlayTrack();
+            }
+        }
+
+        function playSingleSong(buttonElement) {
+            buildQueue();
+            const songItem = buttonElement.closest('.song-item');
+            const targetUrl = songItem.dataset.url;
+            
+            currentIndex = queue.findIndex(track => track.url === targetUrl);
+            if (currentIndex === -1) currentIndex = 0;
+            loadAndPlayTrack();
+        }
+
+        function loadAndPlayTrack() {
+            if (queue.length === 0 || currentIndex < 0 || currentIndex >= queue.length) return;
+            const track = queue[currentIndex];
+            audio.src = track.url;
+            document.getElementById('now-playing').textContent = `Now Playing: ${track.title} (${currentIndex + 1}/${queue.length})`;
+            audio.play();
+        }
+
+        function nextTrack() {
+            if (queue.length === 0) return;
+            currentIndex = (currentIndex + 1) % queue.length;
+            loadAndPlayTrack();
+        }
+
+        function prevTrack() {
+            if (queue.length === 0) return;
+            currentIndex = (currentIndex - 1 + queue.length) % queue.length;
+            loadAndPlayTrack();
+        }
+
+        // Auto-advance queue when current track finishes
+        audio.addEventListener('ended', () => {
+            nextTrack();
+        });
+    </script>
+</body>
+</html>

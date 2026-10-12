@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"><title>Login</title>
+    <style>body { max-width: 400px; margin: 60px auto; background: #151515; color: white; font-family: Arial; padding: 20px; }</style>
+</head>
+<body>
+    <h2>Log In</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" style="background:#4ff165; padding:10px; border:none; border-radius:6px; cursor:pointer;">Log In</button>
+    </form>
+    <p>Don't have an account? <a href="{% url 'register' %}" style="color:#4ff165;">Register here</a></p>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>My Playlists</title>
+<style>body { max-width: 600px; margin: 40px auto; background: #151515; color: white; font-family: Arial; padding: 20px; }</style>
+</head>
+<body>
+    <h1>My Playlists</h1>
+    <a href="{% url 'playlist_create' %}" style="color: #4ff165;">+ Create New Playlist</a> | <a href="{% url 'index' %}" style="color: #aaa;">Back to Home</a>
+    <ul>
+        {% for pl in playlists %}
+            <li><a href="{% url 'playlist_detail' pl.id %}" style="color: #4ff165; font-size: 1.2em;">{{ pl.name }}</a> ({{ pl.songs.count }} songs)</li>
+        {% empty %}
+            <p>You haven't created any playlists yet.</p>
+        {% endfor %}
+    </ul>
+</body>
+</html>

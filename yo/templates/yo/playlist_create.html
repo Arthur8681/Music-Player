@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Create Playlist</title>
+<style>body { max-width: 400px; margin: 60px auto; background: #151515; color: white; font-family: Arial; padding: 20px; }</style>
+</head>
+<body>
+    <h2>Create Playlist</h2>
+    <form method="post">
+        {% csrf_token %}
+        <input type="text" name="name" placeholder="Playlist Name" required style="padding:10px; width:100%; margin-bottom:10px; background:#252525; color:white; border:none; border-radius:6px;">
+        <button type="submit" style="background:#4ff165; padding:10px; border:none; border-radius:6px; cursor:pointer; font-weight:bold;">Create</button>
+    </form>
+    <a href="{% url 'playlist_list' %}" style="color:#aaa;">Cancel</a>
+</body>
+</html>
